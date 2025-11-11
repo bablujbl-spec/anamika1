@@ -1,48 +1,62 @@
-// app/sign-up/page.tsx
 "use client";
+
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 
 export default function SignUpPage() {
   const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const router = useRouter();
 
-  async function handleSignUp(e: React.FormEvent) {
+  const handleSignUp = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setLoading(true);
+
     try {
-      const { error } = await supabase.auth.signUp({ email });
-      if (error) {
-        alert(error.message);
-      } else {
-        alert("Check your email for the sign-up link. Then sign in.");
-        router.push("/sign-in");
-      }
-    } catch (err: any) {
-      alert(err?.message || "Something went wrong");
+      const { error } = await supabase.auth.signUp({
+        email,
+        password,
+      });
+      if (error) throw error;
+      alert("Account created! You can now sign in.");
+      router.push("/sign-in");
+    } catch (err: unknown) {
+      console.error("Sign-up error:", err);
+      alert("Failed to sign up.");
     } finally {
       setLoading(false);
     }
-  }
+  };
 
   return (
-    <div className="flex items-center justify-center min-h-screen p-6">
-      <form onSubmit={handleSignUp} className="flex flex-col gap-3 w-full max-w-md">
-        <h2 className="text-xl font-semibold">Sign up</h2>
+    <div className="p-8 max-w-md mx-auto">
+      <h1 className="text-xl font-semibold mb-4">Create an Account</h1>
+      <form onSubmit={handleSignUp}>
         <input
           type="email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          placeholder="Your email"
+          className="border p-2 w-full mb-3 rounded"
+          placeholder="Email"
           required
-          className="p-2 border rounded"
         />
-        <button type="submit" disabled={loading} className="p-2 bg-green-600 text-white rounded">
-          {loading ? "Processing..." : "Sign up"}
+        <input
+          type="password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          className="border p-2 w-full mb-3 rounded"
+          placeholder="Password"
+          required
+        />
+        <button
+          type="submit"
+          className="bg-green-600 text-white px-4 py-2 rounded w-full"
+          disabled={loading}
+        >
+          {loading ? "Creating..." : "Sign Up"}
         </button>
-        <p className="text-sm text-gray-600">We will send an email to complete registration.</p>
       </form>
     </div>
   );
