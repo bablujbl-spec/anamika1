@@ -1,60 +1,98 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { supabase } from "@/lib/supabaseClient";
 
-export default function AskGPT5Page() {
+// optional — build error আটকাতে prerender বন্ধ করুন
+export const dynamic = "force-dynamic";
+
+export default function AskGPTPage() {
+  const router = useRouter();
   const [question, setQuestion] = useState("");
   const [answer, setAnswer] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [authChecked, setAuthChecked] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
+  // ✅ Step 1: Session check
+  useEffect(() => {
+    const checkAuth = async () => {
+      const { data } = await supabase.auth.getSession();
+
+      if (!data.session) {
+        // not logged in → redirect to sign-in
+        router.replace("/sign-in");
+      } else {
+        setAuthChecked(true);
+      }
+    };
+
+    checkAuth();
+  }, [router]);
+
+  if (!authChecked) {
+    return (
+      <div style={{ textAlign: "center", marginTop: "40px" }}>
+        Checking authentication...
+      </div>
+    );
+  }
+
+  // ✅ Step 2: Question handler (mock chat behavior)
+  async function handleAsk() {
+    if (!question.trim()) return;
+
     setLoading(true);
     setAnswer(null);
 
     try {
-      const res = await fetch("/api/ask-gpt5", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ question }),
-      });
-
-      if (!res.ok) throw new Error("Failed to get response from API");
-
-      const data: { answer: string } = await res.json();
-      setAnswer(data.answer);
-    } catch (_err: unknown) {
-      setAnswer("Something went wrong. Please try again.");
+      // এখানে আপনি নিজের backend বা GPT API কল করবেন
+      // এখন demo হিসেবে static উত্তর দিচ্ছি
+      await new Promise((r) => setTimeout(r, 1000));
+      setAnswer("🤖 GPT says: " + question.split("").reverse().join(""));
+    } catch (err: any) {
+      setAnswer("Error: " + err.message);
     } finally {
       setLoading(false);
     }
-  };
+  }
 
+  // ✅ Step 3: UI
   return (
-    <div className="p-8 max-w-lg mx-auto text-center">
-      <h1 className="text-2xl font-bold mb-4">Ask GPT-5</h1>
+    <div style={{ maxWidth: 600, margin: "60px auto", padding: 20 }}>
+      <h2>Ask GPT</h2>
+      <textarea
+        placeholder="Type your question..."
+        value={question}
+        onChange={(e) => setQuestion(e.target.value)}
+        rows={4}
+        style={{
+          width: "100%",
+          padding: 10,
+          fontSize: "16px",
+          marginBottom: 10,
+        }}
+      />
 
-      <form onSubmit={handleSubmit}>
-        <textarea
-          value={question}
-          onChange={(e) => setQuestion(e.target.value)}
-          placeholder="Type your question..."
-          className="w-full p-3 border rounded mb-4"
-          rows={4}
-          required
-        />
-        <button
-          type="submit"
-          className="px-6 py-2 bg-blue-600 text-white rounded"
-          disabled={loading}
-        >
-          {loading ? "Asking..." : "Ask"}
-        </button>
-      </form>
+      <button
+        onClick={handleAsk}
+        disabled={loading}
+        style={{ padding: "10px 20px", fontSize: "16px" }}
+      >
+        {loading ? "Thinking..." : "Ask GPT"}
+      </button>
 
       {answer && (
-        <div className="mt-6 p-4 bg-gray-100 rounded text-left">
-          <strong>Answer:</strong>
+        <div
+          style={{
+            marginTop: 20,
+            padding: 15,
+            border: "1px solid #ddd",
+            borderRadius: 10,
+            background: "#fafafa",
+          }}
+        >
+          <b>Answer:</b>
           <p>{answer}</p>
         </div>
       )}
