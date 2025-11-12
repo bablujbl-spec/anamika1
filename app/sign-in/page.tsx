@@ -5,45 +5,69 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 
 export default function SignInPage() {
-  const [email, setEmail] = useState("");
-  const [loading, setLoading] = useState(false);
   const router = useRouter();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleSignIn = async (e: React.FormEvent<HTMLFormElement>) => {
+  async function handleSignIn(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
+    setError(null);
 
     try {
-      const { error } = await supabase.auth.signInWithOtp({ email });
-      if (error) throw error;
-      alert("Magic link sent! Check your inbox.");
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (error) {
+        setError(error.message);
+        return;
+      }
+
+      // success → go to ask-gpt
+      router.push("/ask-gpt");
     } catch (err: unknown) {
-      console.error("Sign-in error:", err);
-      alert("Failed to sign in.");
+      const message = err instanceof Error ? err.message : String(err);
+      setError(message);
     } finally {
       setLoading(false);
     }
-  };
+  }
 
   return (
-    <div className="p-8 max-w-md mx-auto">
-      <h1 className="text-xl font-semibold mb-4">Sign In</h1>
+    <div style={{ maxWidth: 680, margin: "40px auto", padding: 20 }}>
+      <h1>Sign in</h1>
       <form onSubmit={handleSignIn}>
-        <input
-          type="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          className="border p-2 w-full mb-3 rounded"
-          placeholder="Enter your email"
-          required
-        />
-        <button
-          type="submit"
-          className="bg-blue-600 text-white px-4 py-2 rounded w-full"
-          disabled={loading}
-        >
-          {loading ? "Sending..." : "Send Magic Link"}
+        <div style={{ marginBottom: 12 }}>
+          <label>Email</label><br />
+          <input
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+            style={{ width: "100%", padding: 8 }}
+          />
+        </div>
+
+        <div style={{ marginBottom: 12 }}>
+          <label>Password</label><br />
+          <input
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+            style={{ width: "100%", padding: 8 }}
+          />
+        </div>
+
+        <button type="submit" disabled={loading} style={{ padding: "10px 16px" }}>
+          {loading ? "Signing in..." : "Sign in"}
         </button>
+
+        {error && <p style={{ color: "red", marginTop: 12 }}>{error}</p>}
       </form>
     </div>
   );

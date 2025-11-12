@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 
-// optional — build error আটকাতে prerender বন্ধ করুন
+// Prevent prerendering (if you previously had prerender errors)
 export const dynamic = "force-dynamic";
 
 export default function AskGPTPage() {
@@ -14,20 +14,33 @@ export default function AskGPTPage() {
   const [loading, setLoading] = useState(false);
   const [authChecked, setAuthChecked] = useState(false);
 
-  // ✅ Step 1: Session check
   useEffect(() => {
-    const checkAuth = async () => {
-      const { data } = await supabase.auth.getSession();
+    let mounted = true;
 
-      if (!data.session) {
-        // not logged in → redirect to sign-in
+    const checkAuth = async () => {
+      try {
+        const { data } = await supabase.auth.getSession();
+
+        if (!data.session) {
+          // not logged in → redirect to sign-in
+          router.replace("/sign-in");
+          return;
+        }
+
+        if (mounted) setAuthChecked(true);
+      } catch (err: unknown) {
+        // safe error handling (no `any`)
+        const message = err instanceof Error ? err.message : String(err);
+        console.error("Auth check error:", message);
         router.replace("/sign-in");
-      } else {
-        setAuthChecked(true);
       }
     };
 
     checkAuth();
+
+    return () => {
+      mounted = false;
+    };
   }, [router]);
 
   if (!authChecked) {
@@ -38,7 +51,6 @@ export default function AskGPTPage() {
     );
   }
 
-  // ✅ Step 2: Question handler (mock chat behavior)
   async function handleAsk() {
     if (!question.trim()) return;
 
@@ -46,21 +58,21 @@ export default function AskGPTPage() {
     setAnswer(null);
 
     try {
-      // এখানে আপনি নিজের backend বা GPT API কল করবেন
-      // এখন demo হিসেবে static উত্তর দিচ্ছি
-      await new Promise((r) => setTimeout(r, 1000));
-      setAnswer("🤖 GPT says: " + question.split("").reverse().join(""));
-    } catch (err: any) {
-      setAnswer("Error: " + err.message);
+      // Demo response — এখানে আপনার GPT API কল করবেন
+      await new Promise((r) => setTimeout(r, 800));
+      setAnswer("🤖 Demo answer: " + question.split("").reverse().join(""));
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      setAnswer("Error: " + message);
     } finally {
       setLoading(false);
     }
   }
 
-  // ✅ Step 3: UI
   return (
-    <div style={{ maxWidth: 600, margin: "60px auto", padding: 20 }}>
+    <div style={{ maxWidth: 760, margin: "40px auto", padding: 20 }}>
       <h2>Ask GPT</h2>
+
       <textarea
         placeholder="Type your question..."
         value={question}
@@ -74,13 +86,15 @@ export default function AskGPTPage() {
         }}
       />
 
-      <button
-        onClick={handleAsk}
-        disabled={loading}
-        style={{ padding: "10px 20px", fontSize: "16px" }}
-      >
-        {loading ? "Thinking..." : "Ask GPT"}
-      </button>
+      <div>
+        <button
+          onClick={handleAsk}
+          disabled={loading}
+          style={{ padding: "10px 20px", fontSize: "16px" }}
+        >
+          {loading ? "Thinking..." : "Ask GPT"}
+        </button>
+      </div>
 
       {answer && (
         <div
