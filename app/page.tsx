@@ -9,23 +9,26 @@ export default function HomePage() {
 
   useEffect(() => {
     async function checkUser() {
-      const { data } = await supabase.auth.getUser();
-
-      // যদি লগইন থাকে → chat page এ পাঠায়
-      if (data?.user) {
-        router.push("/chat");
-      } else {
-        // না থাকলে → sign-in page এ পাঠায়
+      try {
+        const { data } = await supabase.auth.getUser();
+        if (data?.user) {
+          router.push("/chat"); // লগইন থাকলে
+        } else {
+          router.push("/sign-in"); // না থাকলে
+        }
+      } catch (err: unknown) {
+        console.error(err);
         router.push("/sign-in");
       }
     }
 
     checkUser();
-  }, []);
+  }, [router]);
 
   return (
-    <div className="p-8 text-center">
+    <div style={{ padding: 24, textAlign: "center" }}>
       <h1>Loading...</h1>
+      <p>Please wait while we check your session.</p>
     </div>
   );
 }
