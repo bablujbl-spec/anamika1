@@ -1,74 +1,151 @@
+// app/sign-in/page.tsx
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { supabase } from "@/lib/supabaseClient";
+import { supabase } from "@/lib/supabaseClient"; // যদি এই import error দেখাও, বদলে relative path লিখো: ../../lib/supabaseClient
 
 export default function SignInPage() {
   const router = useRouter();
+  const [mode, setMode] = useState<"magic" | "password">("magic");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  async function handleSignIn(e: React.FormEvent) {
-    e.preventDefault();
+  // Handle magic-link callback (process session from URL fragment)
+  useEffect(() => {
+    const processUrl = async () => {
+      try {
+        const { data, error } = await supabase.auth.getSessionFromUrl({ storeSession: true });
+        if (error) {
+          // not fatal — show console so you can debug
+          console.warn("getSessionFromUrl:", error.message);
+        }
+        if (data?.session) {
+          // session set -> go to chat
+          router.replace("/chat");
+        }
+      } catch (err) {
+        console.error("Error handling magic link:", err);
+      }
+    };
+
+    // Only run on client
+    processUrl();
+  }, [router]);
+
+  const sendMagicLink = async () => {
+    setErrorMessage(null);
+    if (!email) return setErrorMessage("Please enter an email address.");
     setLoading(true);
-    setError(null);
-
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      const redirectTo = `${window.location.origin}/sign-in`;
+      const { error } = await supabase.auth.signInWithOtp({
         email,
-        password,
+        options: { emailRedirectTo: redirectTo },
       });
+      setLoading(false);
+      if (error) return setErrorMessage(error.message);
+      alert("Magic link sent — check your email and open the link.");
+    } catch (err: any) {
+      setLoading(false);
+      setErrorMessage(err?.message || "Failed to send magic link.");
+    }
+  };
 
+  const signInWithPassword = async () => {
+    setErrorMessage(null);
+    if (!email || !password) return setErrorMessage("Email and password are required.");
+    setLoading(true);
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+      setLoading(false);
       if (error) {
-        setError(error.message);
+        setErrorMessage(error.message);
         return;
       }
-
-      // success → go to ask-gpt
-      router.push("/ask-gpt");
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : String(err);
-      setError(message);
-    } finally {
+      if (data?.session) {
+        router.replace("/chat");
+      } else {
+        // sometimes sign-in returns no session (email confirmation required)
+        setErrorMessage("Signed in but no active session. Maybe confirm your email or try magic link.");
+      }
+    } catch (err: any) {
       setLoading(false);
+      setErrorMessage(err?.message || "Sign-in failed.");
     }
-  }
+  };
 
   return (
-    <div style={{ maxWidth: 680, margin: "40px auto", padding: 20 }}>
+    <div style={{ padding: 24, maxWidth: 720 }}>
       <h1>Sign in</h1>
-      <form onSubmit={handleSignIn}>
-        <div style={{ marginBottom: 12 }}>
-          <label>Email</label><br />
-          <input
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-            style={{ width: "100%", padding: 8 }}
-          />
-        </div>
+      <p style={{ color: "#555" }}>Choose magic link (recommended) or password sign-in.</p>
 
-        <div style={{ marginBottom: 12 }}>
-          <label>Password</label><br />
+      <div style={{ marginBottom: 12 }}>
+        <label style={{ marginRight: 12 }}>
+          <input type="radio" checked={mode === "magic"} onChange={() => setMode("magic")} /> Magic link
+        </label>
+        <label>
+          <input type="radio" checked={mode === "password"} onChange={() => setMode("password")} /> Password
+        </label>
+      </div>
+
+      <div style={{ marginBottom: 8 }}>
+        <input
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          placeholder="you@example.com"
+          type="email"
+          style={{ padding: 8, width: "100%", boxSizing: "border-box" }}
+        />
+      </div>
+
+      {mode === "password" && (
+        <div style={{ marginBottom: 8 }}>
           <input
-            type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            required
-            style={{ width: "100%", padding: 8 }}
+            placeholder="Password"
+            type="password"
+            style={{ padding: 8, width: "100%", boxSizing: "border-box" }}
           />
         </div>
+      )}
 
-        <button type="submit" disabled={loading} style={{ padding: "10px 16px" }}>
-          {loading ? "Signing in..." : "Sign in"}
+      {errorMessage && <div style={{ color: "crimson", marginBottom: 8 }}>{errorMessage}</div>}
+
+      <div style={{ display: "flex", gap: 8 }}>
+        {mode === "magic" ? (
+          <button onClick={sendMagicLink} disabled={loading}>
+            {loading ? "Sending..." : "Send magic link"}
+          </button>
+        ) : (
+          <button onClick={signInWithPassword} disabled={loading}>
+            {loading ? "Signing in..." : "Sign in"}
+          </button>
+        )}
+
+        <button
+          onClick={() => {
+            // quick navigation helper
+            router.push("/chat");
+          }}
+        >
+          Open Chat (if already signed in)
         </button>
+      </div>
 
-        {error && <p style={{ color: "red", marginTop: 12 }}>{error}</p>}
-      </form>
+      <hr style={{ margin: "18px 0" }} />
+
+      <div style={{ fontSize: 13, color: "#555" }}>
+        <p>Checklist if things don't work:</p>
+        <ol>
+          <li>Supabase Dashboard → Authentication → Users → check user exists.</li>
+          <li>Supabase Dashboard → Auth → Settings → Site URL and Redirect URLs include <code>{window?.location?.origin}</code> and <code>{window?.location?.origin}/sign-in</code>.</li>
+          <li>Vercel env vars: <code>NEXT_PUBLIC_SUPABASE_URL</code> and <code>NEXT_PUBLIC_SUPABASE_ANON_KEY</code> are set.</li>
+        </ol>
+      </div>
     </div>
   );
 }

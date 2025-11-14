@@ -1,4 +1,5 @@
-import { NextResponse } from "next/server";
+const router = useRouter();
+router.push("/chat");
 
 interface AskRequestBody {
   question: string;
