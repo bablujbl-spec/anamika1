@@ -1,34 +1,58 @@
-"use client";
+'use client';
 
-import { useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { supabase } from "@/lib/supabaseClient";
+import { useState } from 'react';
+import { supabase } from '@/lib/supabaseClient';
+import { useRouter } from 'next/navigation';
 
-export default function HomePage() {
+export default function LoginPage() {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [errorMsg, setErrorMsg] = useState('');
   const router = useRouter();
 
-  useEffect(() => {
-    async function checkUser() {
-      try {
-        const { data } = await supabase.auth.getUser();
-        if (data?.user) {
-          router.push("/chat"); // লগইন থাকলে
-        } else {
-          router.push("/sign-in"); // না থাকলে
-        }
-      } catch (err: unknown) {
-        console.error(err);
-        router.push("/sign-in");
-      }
-    }
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorMsg('');
 
-    checkUser();
-  }, [router]);
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+
+    if (error) {
+      setErrorMsg(error.message);
+      console.log('Login error:', error.message);
+    } else {
+      console.log('Login success:', data);
+      router.push('/dashboard'); // Login successful → dashboard
+    }
+  };
 
   return (
-    <div style={{ padding: 24, textAlign: "center" }}>
-      <h1>Loading...</h1>
-      <p>Please wait while we check your session.</p>
+    <div style={{ maxWidth: '400px', margin: 'auto', padding: '2rem' }}>
+      <h1>লগইন করুন</h1>
+      <form onSubmit={handleLogin}>
+        <input
+          type="email"
+          placeholder="Email"
+          value={email}
+          onChange={e => setEmail(e.target.value)}
+          required
+          style={{ width: '100%', padding: '0.5rem', marginBottom: '1rem' }}
+        />
+        <input
+          type="password"
+          placeholder="Password"
+          value={password}
+          onChange={e => setPassword(e.target.value)}
+          required
+          style={{ width: '100%', padding: '0.5rem', marginBottom: '1rem' }}
+        />
+        <button type="submit" style={{ width: '100%', padding: '0.5rem' }}>
+          Sign In
+        </button>
+      </form>
+      {errorMsg && <p style={{ color: 'red' }}>{errorMsg}</p>}
     </div>
   );
 }
