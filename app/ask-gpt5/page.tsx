@@ -1,17 +1,12 @@
-import type { NextApiRequest, NextApiResponse } from "next";
+// app/ask-gpt5/page.tsx
+import React from 'react';
 
-interface AskRequestBody {
-  message: string;
+export default function AskGPT5Page() {
+  return (
+    <div>
+      <h1>Ask GPT-5</h1>
+    </div>
+  );
 }
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  try {
-    const body: AskRequestBody = req.body;
-    // এখানে OpenAI GPT-5 API call করবে
-    // উদাহরণ: echo reply
-    const reply = `Echo: ${body.message}`;
-    res.status(200).json({ reply });
-  } catch (err) {
-    res.status(500).json({ error: (err as Error).message });
-  }
-}
+
