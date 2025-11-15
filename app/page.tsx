@@ -14,6 +14,7 @@ export default function LoginPage() {
     e.preventDefault();
     setErrorMsg('');
 
+    // Supabase লগইন
     const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
@@ -24,7 +25,7 @@ export default function LoginPage() {
       console.log('Login error:', error.message);
     } else {
       console.log('Login success:', data);
-      router.push('/dashboard'); // Login successful → dashboard
+      router.push('/dashboard'); // লগইন সফল হলে dashboard-এ redirect
     }
   };
 
@@ -52,7 +53,7 @@ export default function LoginPage() {
           Sign In
         </button>
       </form>
-      {errorMsg && <p style={{ color: 'red' }}>{errorMsg}</p>}
+      {errorMsg && <p style={{ color: 'red', marginTop: '1rem' }}>{errorMsg}</p>}
     </div>
   );
 }
